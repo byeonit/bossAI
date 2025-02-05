@@ -11,8 +11,10 @@ import {
   Product,
   MarketingContent,
   MarketingCampaign,
+  CampaignAnalytics,
   UserCredentials,
   AuthResponse,
+  ProductDescription,
 } from '../types/supabase.types';
 import { environment } from '../../environments/environment';
 
@@ -274,6 +276,29 @@ export class SupabaseService {
     );
   }
 
+  updateCampaign(campaign: MarketingCampaign): Observable<MarketingCampaign> {
+    return from(
+      this.supabase
+        .from('marketing_campaigns')
+        .update({
+          campaign_name: campaign.campaign_name,
+          target_audience: campaign.target_audience,
+          budget: campaign.budget,
+          start_date: campaign.start_date,
+          end_date: campaign.end_date
+        })
+        .eq('id', campaign.id)
+        .eq('user_id', this.currentUser.value?.id)
+        .select()
+        .single()
+    ).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return data as MarketingCampaign;
+      })
+    );
+  }
+
   deleteCampaign(id: string): Observable<void> {
     if (!id) {
       return throwError(() => new Error('Campaign ID is required'));
@@ -343,6 +368,103 @@ export class SupabaseService {
             return contentData as MarketingContent[];
           })
         );
+      })
+    );
+  }
+
+  // New Analytics Methods
+  getCampaignAnalytics(campaignId: string, startDate?: string, endDate?: string): Observable<CampaignAnalytics[]> {
+    let query = this.supabase
+      .from('campaign_analytics')
+      .select('*')
+      .eq('campaign_id', campaignId)
+      .order('date', { ascending: true });
+
+    if (startDate) {
+      query = query.gte('date', startDate);
+    }
+    if (endDate) {
+      query = query.lte('date', endDate);
+    }
+
+    return from(query).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return data as CampaignAnalytics[];
+      })
+    );
+  }
+
+  getCampaignAnalyticsSummary(campaignId: string): Observable<{
+    total_impressions: number;
+    total_clicks: number;
+    total_conversions: number;
+    avg_engagement_rate: number;
+  }> {
+    return this.getCampaignAnalytics(campaignId).pipe(
+      map(analytics => {
+        const summary = analytics.reduce((acc, curr) => ({
+          total_impressions: acc.total_impressions + curr.impressions,
+          total_clicks: acc.total_clicks + curr.clicks,
+          total_conversions: acc.total_conversions + curr.conversions,
+          avg_engagement_rate: acc.avg_engagement_rate + curr.engagement_rate
+        }), {
+          total_impressions: 0,
+          total_clicks: 0,
+          total_conversions: 0,
+          avg_engagement_rate: 0
+        });
+
+        if (analytics.length > 0) {
+          summary.avg_engagement_rate /= analytics.length;
+        }
+
+        return summary;
+      })
+    );
+  }
+
+  // Get all product descriptions
+  getProductDescriptions(): Observable<ProductDescription[]> {
+    return from(
+      this.supabase
+        .from('product_descriptions')
+        .select('*')
+        .eq('user_id', this.currentUser.value?.id)
+        .order('created_at', { ascending: false })
+    ).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return data as ProductDescription[];
+      })
+    );
+  }
+
+  // Add a new product description
+  addProductDescription(
+    name: string,
+    details: string,
+    generatedDescription: string,
+    tone: string
+  ): Observable<ProductDescription> {
+    return from(
+      this.supabase
+        .from('product_descriptions')
+        .insert([
+          {
+            name,
+            details,
+            generated_description: generatedDescription,
+            tone,
+            user_id: this.currentUser.value?.id,
+          },
+        ])
+        .select()
+        .single()
+    ).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return data as ProductDescription;
       })
     );
   }

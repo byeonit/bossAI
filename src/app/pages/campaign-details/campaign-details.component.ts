@@ -40,12 +40,20 @@ interface CampaignDetails extends MarketingCampaign {
               </svg>
               Back to Campaigns
             </button>
-            <button
-              (click)="editCampaign()"
-              class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-            >
-              Edit Campaign
-            </button>
+            <div class="flex space-x-4">
+              <button
+                (click)="viewAnalytics()"
+                class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+              >
+                View Analytics
+              </button>
+              <button
+                (click)="editCampaign()"
+                class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+              >
+                Edit Campaign
+              </button>
+            </div>
           </div>
 
           <!-- Campaign Header -->
@@ -88,49 +96,46 @@ interface CampaignDetails extends MarketingCampaign {
             </div>
           </div>
 
-          <!-- Linked Content Section -->
+          <!-- Performance Metrics Section -->
           <div class="bg-white shadow rounded-lg overflow-hidden">
             <div class="px-6 py-5 border-b border-gray-200">
               <div class="flex justify-between items-center">
-                <h2 class="text-lg font-medium text-gray-900">Linked Marketing Content</h2>
+                <h2 class="text-lg font-medium text-gray-900">Performance Metrics</h2>
                 <button
-                  (click)="linkContent()"
-                  class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                  (click)="viewAnalytics()"
+                  class="text-primary hover:text-primary-dark text-sm font-medium"
                 >
-                  Link Content
+                  View Detailed Analytics →
                 </button>
               </div>
             </div>
             <div class="px-6 py-5">
-              <div *ngIf="(campaign?.linked_content?.length ?? 0) === 0" class="text-center py-6 text-gray-500">
-                No content linked to this campaign yet
-              </div>
-              <div *ngIf="(campaign?.linked_content?.length ?? 0) > 0" class="space-y-4">
-                <div *ngFor="let content of campaign.linked_content" class="border rounded-lg p-4">
-                  <div class="flex justify-between items-start">
-                    <div>
-                      <h3 class="text-lg font-medium text-gray-900">{{ content.title }}</h3>
-                      <p class="mt-1 text-sm text-gray-600">{{ content.description }}</p>
-                    </div>
-                    <button
-                      (click)="unlinkContent(content.id)"
-                      class="text-red-600 hover:text-red-800 text-sm font-medium"
-                    >
-                      Unlink
-                    </button>
-                  </div>
+              <div *ngIf="analyticsSummary" class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <div>
+                  <p class="text-sm font-medium text-gray-500">Total Impressions</p>
+                  <p class="mt-1 text-2xl font-semibold text-gray-900">
+                    {{ analyticsSummary.total_impressions | number }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-gray-500">Total Clicks</p>
+                  <p class="mt-1 text-2xl font-semibold text-gray-900">
+                    {{ analyticsSummary.total_clicks | number }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-gray-500">Total Conversions</p>
+                  <p class="mt-1 text-2xl font-semibold text-gray-900">
+                    {{ analyticsSummary.total_conversions | number }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-gray-500">Avg. Engagement Rate</p>
+                  <p class="mt-1 text-2xl font-semibold text-gray-900">
+                    {{ analyticsSummary.avg_engagement_rate | percent:'1.2' }}
+                  </p>
                 </div>
               </div>
-            </div>
-          </div>
-
-          <!-- Performance Metrics Placeholder -->
-          <div class="bg-white shadow rounded-lg overflow-hidden">
-            <div class="px-6 py-5 border-b border-gray-200">
-              <h2 class="text-lg font-medium text-gray-900">Performance Metrics</h2>
-            </div>
-            <div class="px-6 py-5">
-              <p class="text-gray-500 text-center">Performance metrics coming soon</p>
             </div>
           </div>
         </div>
@@ -142,6 +147,12 @@ export class CampaignDetailsComponent implements OnInit {
   campaign: CampaignDetails | null = null;
   isLoading = true;
   error: string | null = null;
+  analyticsSummary: {
+    total_impressions: number;
+    total_clicks: number;
+    total_conversions: number;
+    avg_engagement_rate: number;
+  } | null = null;
 
   constructor(
     private route: ActivatedRoute,
@@ -161,26 +172,40 @@ export class CampaignDetailsComponent implements OnInit {
       return;
     }
 
+    console.log('Loading campaign details for ID:', campaignId);
+
     this.supabaseService.getCampaignDetails(campaignId).pipe(
+      catchError(error => {
+        console.error('Error fetching campaign:', error);
+        throw new Error('Failed to load campaign details');
+      }),
       switchMap(campaign => {
+        console.log('Campaign loaded:', campaign);
         return forkJoin({
           campaign: of(campaign),
-          content: this.supabaseService.getCampaignContent(campaignId).pipe(
-            catchError(() => of([]))
+          analytics: this.supabaseService.getCampaignAnalyticsSummary(campaignId).pipe(
+            catchError(error => {
+              console.error('Error fetching analytics:', error);
+              return of({
+                total_impressions: 0,
+                total_clicks: 0,
+                total_conversions: 0,
+                avg_engagement_rate: 0
+              });
+            })
           )
         });
       })
     ).subscribe({
-      next: ({ campaign, content }) => {
-        this.campaign = {
-          ...campaign,
-          linked_content: content
-        };
+      next: ({ campaign, analytics }) => {
+        console.log('Data loaded successfully:', { campaign, analytics });
+        this.campaign = campaign;
+        this.analyticsSummary = analytics;
         this.isLoading = false;
       },
       error: (error) => {
-        console.error('Error loading campaign details:', error);
-        this.error = 'Failed to load campaign details';
+        console.error('Error in subscription:', error);
+        this.error = error.message || 'Failed to load campaign details';
         this.isLoading = false;
       }
     });
@@ -222,25 +247,9 @@ export class CampaignDetailsComponent implements OnInit {
     }
   }
 
-  linkContent() {
-    // To be implemented
-    Swal.fire({
-      title: 'Coming Soon',
-      text: 'Content linking feature will be available soon',
-      icon: 'info',
-      confirmButtonText: 'OK',
-      confirmButtonColor: '#2563eb'
-    });
-  }
-
-  unlinkContent(contentId: string) {
-    // To be implemented
-    Swal.fire({
-      title: 'Coming Soon',
-      text: 'Content unlinking feature will be available soon',
-      icon: 'info',
-      confirmButtonText: 'OK',
-      confirmButtonColor: '#2563eb'
-    });
+  viewAnalytics() {
+    if (this.campaign) {
+      this.router.navigate(['/campaigns', this.campaign.id, 'analytics']);
+    }
   }
 }
