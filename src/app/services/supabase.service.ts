@@ -1,12 +1,12 @@
-import { Injectable } from '@angular/core';
+import { Injectable } from "@angular/core";
 import {
   createClient,
   SupabaseClient,
   User,
   AuthError,
-} from '@supabase/supabase-js';
-import { BehaviorSubject, Observable, from, throwError, of } from 'rxjs';
-import { map, catchError, tap, switchMap } from 'rxjs/operators';
+} from "@supabase/supabase-js";
+import { BehaviorSubject, Observable, from, throwError, of } from "rxjs";
+import { map, catchError, tap, switchMap } from "rxjs/operators";
 import {
   Product,
   MarketingContent,
@@ -15,11 +15,11 @@ import {
   UserCredentials,
   AuthResponse,
   ProductDescription,
-} from '../types/supabase.types';
-import { environment } from '../../environments/environment';
+} from "../types/supabase.types";
+import { environment } from "../../environments/environment";
 
 @Injectable({
-  providedIn: 'root',
+  providedIn: "root",
 })
 export class SupabaseService {
   private supabase: SupabaseClient;
@@ -77,7 +77,7 @@ export class SupabaseService {
   ): Observable<MarketingContent> {
     return from(
       this.supabase
-        .from('marketing_content')
+        .from("marketing_content")
         .insert([
           {
             title,
@@ -98,10 +98,10 @@ export class SupabaseService {
   getMarketingContent(): Observable<MarketingContent[]> {
     return from(
       this.supabase
-        .from('marketing_content')
-        .select('*')
-        .eq('user_id', this.currentUser.value?.id)
-        .order('created_at', { ascending: false })
+        .from("marketing_content")
+        .select("*")
+        .eq("user_id", this.currentUser.value?.id)
+        .order("created_at", { ascending: false })
     ).pipe(
       map(({ data, error }) => {
         if (error) throw error;
@@ -119,18 +119,18 @@ export class SupabaseService {
 
     return from(
       this.supabase
-        .from('marketing_content')
-        .select('*')
-        .eq('user_id', this.currentUser.value?.id)
+        .from("marketing_content")
+        .select("*")
+        .eq("user_id", this.currentUser.value?.id)
         .or(`title.ilike.${searchTerm},description.ilike.${searchTerm}`)
-        .order('created_at', { ascending: false })
+        .order("created_at", { ascending: false })
     ).pipe(
       map(({ data, error }) => {
         if (error) throw error;
         return data as MarketingContent[];
       }),
       catchError((error) => {
-        console.error('Error searching marketing content:', error);
+        console.error("Error searching marketing content:", error);
         throw error;
       })
     );
@@ -145,10 +145,10 @@ export class SupabaseService {
 
     try {
       const { data, count, error } = await this.supabase
-        .from('marketing_content')
-        .select('*', { count: 'exact' })
-        .eq('user_id', this.currentUser.value?.id)
-        .order('created_at', { ascending: false })
+        .from("marketing_content")
+        .select("*", { count: "exact" })
+        .eq("user_id", this.currentUser.value?.id)
+        .order("created_at", { ascending: false })
         .range(from, to);
 
       if (error) throw error;
@@ -158,7 +158,7 @@ export class SupabaseService {
         count: count || 0,
       };
     } catch (error) {
-      console.error('Error fetching paginated content:', error);
+      console.error("Error fetching paginated content:", error);
       throw error;
     }
   }
@@ -170,10 +170,10 @@ export class SupabaseService {
   ): Observable<MarketingContent> {
     return from(
       this.supabase
-        .from('marketing_content')
+        .from("marketing_content")
         .update({ title, description })
-        .eq('id', id)
-        .eq('user_id', this.currentUser.value?.id)
+        .eq("id", id)
+        .eq("user_id", this.currentUser.value?.id)
         .select()
         .single()
     ).pipe(
@@ -188,27 +188,27 @@ export class SupabaseService {
     console.log(`Attempting to delete marketing content with ID: ${id}`);
 
     if (!id) {
-      return throwError(() => new Error('Content ID is required'));
+      return throwError(() => new Error("Content ID is required"));
     }
 
     return from(
       this.supabase
-        .from('marketing_content')
+        .from("marketing_content")
         .delete()
-        .eq('id', id)
-        .eq('user_id', this.currentUser.value?.id)
+        .eq("id", id)
+        .eq("user_id", this.currentUser.value?.id)
     ).pipe(
       map(({ error, count }) => {
         if (error) throw error;
         console.log(`Successfully deleted ${count} marketing content items`);
         if (count === 0) {
           throw new Error(
-            'No content was deleted. Content may not exist or you may not have permission.'
+            "No content was deleted. Content may not exist or you may not have permission."
           );
         }
       }),
       catchError((error) => {
-        console.error('Error deleting marketing content:', error);
+        console.error("Error deleting marketing content:", error);
         throw error;
       })
     );
@@ -222,30 +222,35 @@ export class SupabaseService {
     const from = page * pageSize;
     const to = from + pageSize - 1;
 
-    console.log('Fetching campaigns with params:', { page, pageSize, from, to });
-    console.log('Current user:', this.currentUser.value?.id);
+    console.log("Fetching campaigns with params:", {
+      page,
+      pageSize,
+      from,
+      to,
+    });
+    console.log("Current user:", this.currentUser.value?.id);
 
     try {
       const { data, count, error } = await this.supabase
-        .from('marketing_campaigns')
-        .select('*', { count: 'exact' })
-        .eq('user_id', this.currentUser.value?.id)
-        .order('created_at', { ascending: false })
+        .from("marketing_campaigns")
+        .select("*", { count: "exact" })
+        .eq("user_id", this.currentUser.value?.id)
+        .order("created_at", { ascending: false })
         .range(from, to);
 
       if (error) {
-        console.error('Supabase error:', error);
+        console.error("Supabase error:", error);
         throw error;
       }
 
-      console.log('Fetched campaigns:', { data, count });
+      console.log("Fetched campaigns:", { data, count });
 
       return {
         data: data as MarketingCampaign[],
         count: count || 0,
       };
     } catch (error) {
-      console.error('Error fetching paginated campaigns:', error);
+      console.error("Error fetching paginated campaigns:", error);
       throw error;
     }
   }
@@ -259,7 +264,7 @@ export class SupabaseService {
   }): Observable<MarketingCampaign> {
     return from(
       this.supabase
-        .from('marketing_campaigns')
+        .from("marketing_campaigns")
         .insert([
           {
             ...campaign,
@@ -279,16 +284,16 @@ export class SupabaseService {
   updateCampaign(campaign: MarketingCampaign): Observable<MarketingCampaign> {
     return from(
       this.supabase
-        .from('marketing_campaigns')
+        .from("marketing_campaigns")
         .update({
           campaign_name: campaign.campaign_name,
           target_audience: campaign.target_audience,
           budget: campaign.budget,
           start_date: campaign.start_date,
-          end_date: campaign.end_date
+          end_date: campaign.end_date,
         })
-        .eq('id', campaign.id)
-        .eq('user_id', this.currentUser.value?.id)
+        .eq("id", campaign.id)
+        .eq("user_id", this.currentUser.value?.id)
         .select()
         .single()
     ).pipe(
@@ -301,30 +306,30 @@ export class SupabaseService {
 
   deleteCampaign(id: string): Observable<void> {
     if (!id) {
-      return throwError(() => new Error('Campaign ID is required'));
+      return throwError(() => new Error("Campaign ID is required"));
     }
 
-    console.log('Deleting campaign:', id);
-    console.log('Current user:', this.currentUser.value?.id);
+    console.log("Deleting campaign:", id);
+    console.log("Current user:", this.currentUser.value?.id);
 
     return from(
       this.supabase
-        .from('marketing_campaigns')
+        .from("marketing_campaigns")
         .delete()
-        .eq('id', id)
-        .eq('user_id', this.currentUser.value?.id)
+        .eq("id", id)
+        .eq("user_id", this.currentUser.value?.id)
     ).pipe(
-      tap(response => console.log('Delete response:', response)),
+      tap((response) => console.log("Delete response:", response)),
       map(({ error, count }) => {
         if (error) throw error;
         if (count === 0) {
           throw new Error(
-            'No campaign was deleted. Campaign may not exist or you may not have permission.'
+            "No campaign was deleted. Campaign may not exist or you may not have permission."
           );
         }
       }),
       catchError((error) => {
-        console.error('Error deleting campaign:', error);
+        console.error("Error deleting campaign:", error);
         throw error;
       })
     );
@@ -333,9 +338,9 @@ export class SupabaseService {
   getCampaignDetails(campaignId: string): Observable<MarketingCampaign> {
     return from(
       this.supabase
-        .from('marketing_campaigns')
-        .select('*')
-        .eq('id', campaignId)
+        .from("marketing_campaigns")
+        .select("*")
+        .eq("id", campaignId)
         .single()
     ).pipe(
       map(({ data, error }) => {
@@ -348,20 +353,20 @@ export class SupabaseService {
   getCampaignContent(campaignId: string): Observable<MarketingContent[]> {
     return from(
       this.supabase
-        .from('campaign_content')
-        .select('content_id')
-        .eq('campaign_id', campaignId)
+        .from("campaign_content")
+        .select("content_id")
+        .eq("campaign_id", campaignId)
     ).pipe(
       switchMap(({ data, error }) => {
         if (error) throw error;
         if (!data?.length) return of([]);
 
-        const contentIds = data.map(entry => entry.content_id);
+        const contentIds = data.map((entry) => entry.content_id);
         return from(
           this.supabase
-            .from('marketing_content')
-            .select('*')
-            .in('id', contentIds)
+            .from("marketing_content")
+            .select("*")
+            .in("id", contentIds)
         ).pipe(
           map(({ data: contentData, error: contentError }) => {
             if (contentError) throw contentError;
@@ -373,18 +378,22 @@ export class SupabaseService {
   }
 
   // New Analytics Methods
-  getCampaignAnalytics(campaignId: string, startDate?: string, endDate?: string): Observable<CampaignAnalytics[]> {
+  getCampaignAnalytics(
+    campaignId: string,
+    startDate?: string,
+    endDate?: string
+  ): Observable<CampaignAnalytics[]> {
     let query = this.supabase
-      .from('campaign_analytics')
-      .select('*')
-      .eq('campaign_id', campaignId)
-      .order('date', { ascending: true });
+      .from("campaign_analytics")
+      .select("*")
+      .eq("campaign_id", campaignId)
+      .order("date", { ascending: true });
 
     if (startDate) {
-      query = query.gte('date', startDate);
+      query = query.gte("date", startDate);
     }
     if (endDate) {
-      query = query.lte('date', endDate);
+      query = query.lte("date", endDate);
     }
 
     return from(query).pipe(
@@ -402,18 +411,21 @@ export class SupabaseService {
     avg_engagement_rate: number;
   }> {
     return this.getCampaignAnalytics(campaignId).pipe(
-      map(analytics => {
-        const summary = analytics.reduce((acc, curr) => ({
-          total_impressions: acc.total_impressions + curr.impressions,
-          total_clicks: acc.total_clicks + curr.clicks,
-          total_conversions: acc.total_conversions + curr.conversions,
-          avg_engagement_rate: acc.avg_engagement_rate + curr.engagement_rate
-        }), {
-          total_impressions: 0,
-          total_clicks: 0,
-          total_conversions: 0,
-          avg_engagement_rate: 0
-        });
+      map((analytics) => {
+        const summary = analytics.reduce(
+          (acc, curr) => ({
+            total_impressions: acc.total_impressions + curr.impressions,
+            total_clicks: acc.total_clicks + curr.clicks,
+            total_conversions: acc.total_conversions + curr.conversions,
+            avg_engagement_rate: acc.avg_engagement_rate + curr.engagement_rate,
+          }),
+          {
+            total_impressions: 0,
+            total_clicks: 0,
+            total_conversions: 0,
+            avg_engagement_rate: 0,
+          }
+        );
 
         if (analytics.length > 0) {
           summary.avg_engagement_rate /= analytics.length;
@@ -428,10 +440,10 @@ export class SupabaseService {
   getProductDescriptions(): Observable<ProductDescription[]> {
     return from(
       this.supabase
-        .from('product_descriptions')
-        .select('*')
-        .eq('user_id', this.currentUser.value?.id)
-        .order('created_at', { ascending: false })
+        .from("product_descriptions")
+        .select("*")
+        .eq("user_id", this.currentUser.value?.id)
+        .order("created_at", { ascending: false })
     ).pipe(
       map(({ data, error }) => {
         if (error) throw error;
@@ -449,7 +461,7 @@ export class SupabaseService {
   ): Observable<ProductDescription> {
     return from(
       this.supabase
-        .from('product_descriptions')
+        .from("product_descriptions")
         .insert([
           {
             name,
@@ -465,6 +477,22 @@ export class SupabaseService {
       map(({ data, error }) => {
         if (error) throw error;
         return data as ProductDescription;
+      })
+    );
+  }
+
+  // Add this new method to get products
+  getProducts(): Observable<Product[]> {
+    return from(
+      this.supabase
+        .from("products")
+        .select("*")
+        .eq("user_id", this.currentUser.value?.id)
+        .order("created_at", { ascending: false })
+    ).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return data as Product[];
       })
     );
   }

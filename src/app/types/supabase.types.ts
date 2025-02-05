@@ -1,3 +1,5 @@
+import { User } from '@supabase/supabase-js';
+
 export interface Product {
   id: string;
   created_at: string;
@@ -55,4 +57,24 @@ export interface ProductDescription {
   tone: string;
   user_id: string;
   created_at: string;
+}
+
+export interface SocialPromoOptions {
+  platform: 'instagram' | 'pinterest' | 'facebook';
+  contentType: 'product_showcase' | 'lifestyle' | 'promotional' | 'educational';
+  tone: 'casual' | 'professional' | 'friendly' | 'luxury';
+  includePrice: boolean;
+  includeCTA: boolean;
+  targetAudience: 'general' | 'young_adults' | 'professionals' | 'luxury_buyers';
+  promotionalAngle: 'features' | 'benefits' | 'lifestyle' | 'value_proposition';
+}
+
+export interface SocialPromoContent {
+  id: string;
+  product_id: string;
+  platform: string;
+  content: string;
+  hashtags?: string;
+  created_at: string;
+  options: SocialPromoOptions;
 }
