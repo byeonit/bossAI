@@ -78,3 +78,25 @@ export interface SocialPromoContent {
   created_at: string;
   options: SocialPromoOptions;
 }
+
+export interface ImageGenerationOptions {
+  platform: 'instagram' | 'pinterest' | 'facebook' | 'whatsapp' | 'telegram' | 'tiktok';
+  style: 'realistic' | 'artistic' | 'minimalist' | 'vintage' | 'modern' | 'luxury';
+  mood: 'bright' | 'dark' | 'warm' | 'cool' | 'neutral';
+  composition: 'product_only' | 'lifestyle' | 'in_use' | 'flat_lay';
+  background: 'plain' | 'gradient' | 'contextual' | 'abstract';
+  colorScheme: 'brand_colors' | 'monochromatic' | 'complementary' | 'warm_tones' | 'cool_tones';
+  includeText: boolean;
+  includeLogo: boolean;
+  aspectRatio: '1:1' | '4:5' | '16:9' | '9:16';
+}
+
+export interface GeneratedImage {
+  id: string;
+  product_id: string;
+  platform: string;
+  imageUrl: string;
+  prompt: string;
+  options: ImageGenerationOptions;
+  created_at: string;
+}

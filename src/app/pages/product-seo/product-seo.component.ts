@@ -1,411 +1,47 @@
-import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { SupabaseService } from '../../services/supabase.service';
-import { ProductDescription, Product } from '../../types/supabase.types';
-import { SocialPromoOptions, SocialPromoContent } from '../../types/supabase.types';
+import { Component, OnInit } from "@angular/core";
+import { CommonModule } from "@angular/common";
+import { FormsModule } from "@angular/forms";
+import { SupabaseService } from "../../services/supabase.service";
+import { ProductDescription, Product, ImageGenerationOptions, GeneratedImage } from "../../types/supabase.types";
+import {
+  SocialPromoOptions,
+  SocialPromoContent,
+} from "../../types/supabase.types";
+import Swal from "sweetalert2";
+import { ProductSelectorComponent } from "../../components/product-seo/product-selector/product-selector.component";
+import { DescriptionGeneratorComponent } from "../../components/product-seo/description-generator/description-generator.component";
+import { SocialContentGeneratorComponent } from "../../components/product-seo/social-content-generator/social-content-generator.component";
+import { ImageGeneratorComponent } from "../../components/product-seo/image-generator/image-generator.component";
 
 @Component({
-  selector: 'app-product-seo',
+  selector: "app-product-seo",
   standalone: true,
-  imports: [CommonModule, FormsModule],
-  template: `
-    <div class="min-h-screen bg-gray-100 py-8">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <!-- Products List -->
-        <div class="mb-8 bg-white shadow rounded-lg overflow-hidden">
-          <div class="px-4 py-5 border-b border-gray-200 sm:px-6">
-            <h2 class="text-xl font-semibold text-gray-900">Your Products</h2>
-            <p class="mt-1 text-sm text-gray-500">Click "Generate SEO" on any product to automatically fill the form below.</p>
-          </div>
-          <div class="px-4 py-5 sm:p-6">
-            <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              <div *ngFor="let product of products" 
-                   class="bg-gray-50 p-4 rounded-lg transition-all duration-200 hover:shadow-md"
-                   [class.border-2]="selectedProduct?.id === product.id"
-                   [class.border-primary]="selectedProduct?.id === product.id">
-                <div class="flex justify-between items-start mb-2">
-                  <h3 class="text-lg font-medium text-gray-900">{{ product.name }}</h3>
-                  <span class="text-sm font-medium text-primary">
-                    {{ product.price | currency }}
-                  </span>
-                </div>
-                <p class="text-sm text-gray-600 mb-4">{{ product.description }}</p>
-                <div class="flex items-center justify-between">
-                  <div class="text-xs text-gray-500">
-                    Created: {{ product.created_at | date:'medium' }}
-                  </div>
-                  <button
-                    (click)="selectProduct(product)"
-                    class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-200"
-                  >
-                    <svg *ngIf="selectedProduct?.id === product.id" class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                    {{ selectedProduct?.id === product.id ? 'Selected' : 'Generate SEO' }}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Empty State -->
-            <div *ngIf="products.length === 0" class="text-center py-12">
-              <p class="text-gray-500">No products found.</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Previous Descriptions -->
-        <div class="mb-8 bg-white shadow rounded-lg overflow-hidden">
-          <div class="px-4 py-5 border-b border-gray-200 sm:px-6">
-            <h2 class="text-xl font-semibold text-gray-900">Previous Product Descriptions</h2>
-          </div>
-          <div class="px-4 py-5 sm:p-6">
-            <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              <div *ngFor="let description of productDescriptions" class="bg-gray-50 p-4 rounded-lg">
-                <h3 class="text-lg font-medium text-gray-900 mb-2">{{ description.name }}</h3>
-                <div class="text-sm text-gray-500 mb-2">
-                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    {{ description.tone }}
-                  </span>
-                </div>
-                <p class="text-sm text-gray-600 mb-4">{{ description.details }}</p>
-                <div class="border-t pt-4">
-                  <h4 class="text-sm font-medium text-gray-900 mb-2">Generated Description:</h4>
-                  <p class="text-sm text-gray-600">{{ description.generated_description }}</p>
-                </div>
-                <div class="mt-4 text-xs text-gray-500">
-                  Created: {{ description.created_at | date:'medium' }}
-                </div>
-              </div>
-            </div>
-
-            <!-- Empty State -->
-            <div *ngIf="productDescriptions.length === 0" class="text-center py-12">
-              <p class="text-gray-500">No product descriptions found. Generate your first one below!</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Generate New Description Form -->
-        <div class="bg-white shadow rounded-lg">
-          <div class="px-4 py-5 border-b border-gray-200 sm:px-6">
-            <div class="flex justify-between items-center">
-              <div>
-                <h2 class="text-xl font-semibold text-gray-900">Generate New Description</h2>
-                <p *ngIf="selectedProduct" class="mt-1 text-sm text-gray-500">
-                  Generating SEO for: {{ selectedProduct.name }}
-                </p>
-              </div>
-              <button
-                *ngIf="selectedProduct"
-                (click)="clearForm()"
-                class="text-sm text-gray-500 hover:text-gray-700"
-              >
-                Clear Form
-              </button>
-            </div>
-          </div>
-          <div class="px-4 py-5 sm:p-6">
-            <form (ngSubmit)="generateDescription()" class="space-y-6">
-              <!-- Product Name -->
-              <div>
-                <label for="productName" class="block text-sm font-medium text-gray-700">Product Name</label>
-                <input
-                  type="text"
-                  id="productName"
-                  [(ngModel)]="product.name"
-                  name="productName"
-                  required
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"
-                  [class.border-red-500]="submitted && !product.name"
-                />
-                <p *ngIf="submitted && !product.name" class="mt-1 text-sm text-red-600">
-                  Product name is required
-                </p>
-              </div>
-
-              <!-- Product Details -->
-              <div>
-                <label for="productDetails" class="block text-sm font-medium text-gray-700">Product Details</label>
-                <textarea
-                  id="productDetails"
-                  [(ngModel)]="product.details"
-                  name="productDetails"
-                  rows="4"
-                  required
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"
-                  [class.border-red-500]="submitted && !product.details"
-                ></textarea>
-                <p *ngIf="submitted && !product.details" class="mt-1 text-sm text-red-600">
-                  Product details are required
-                </p>
-              </div>
-
-              <!-- Tone/Style -->
-              <div>
-                <label for="tone" class="block text-sm font-medium text-gray-700">Tone/Style</label>
-                <select
-                  id="tone"
-                  [(ngModel)]="product.tone"
-                  name="tone"
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"
-                >
-                  <option value="professional">Professional</option>
-                  <option value="casual">Casual</option>
-                  <option value="formal">Formal</option>
-                  <option value="friendly">Friendly</option>
-                </select>
-              </div>
-
-              <!-- Submit Button -->
-              <div>
-                <button
-                  type="submit"
-                  [disabled]="isLoading"
-                  class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <svg
-                    *ngIf="isLoading"
-                    class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      class="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      stroke-width="4"
-                    ></circle>
-                    <path
-                      class="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  {{ isLoading ? 'Generating...' : 'Generate Description' }}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-
-        <!-- Social Media Promotional Content Generator -->
-        <div class="mt-8 bg-white shadow rounded-lg">
-          <div class="px-4 py-5 border-b border-gray-200 sm:px-6">
-            <div class="flex justify-between items-center">
-              <div>
-                <h2 class="text-xl font-semibold text-gray-900">Generate Promotional Content</h2>
-                <p class="mt-1 text-sm text-gray-500">
-                  Generate Promotional Content for Social Networks
-                </p>
-                <p *ngIf="selectedProduct" class="mt-1 text-sm text-primary">
-                  Creating content for: {{ selectedProduct.name }}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div class="px-4 py-5 sm:p-6">
-            <form (ngSubmit)="generateSocialContent()" class="space-y-6">
-              <!-- Platform Selection -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Platform</label>
-                <div class="mt-2 grid grid-cols-3 gap-3">
-                  <button
-                    type="button"
-                    [class]="socialOptions.platform === 'instagram' ? 
-                      'bg-primary text-white' : 
-                      'bg-white text-gray-700 hover:bg-gray-50'"
-                    (click)="selectPlatform('instagram')"
-                    class="px-4 py-3 border rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
-                  >
-                    Instagram
-                  </button>
-                  <button
-                    type="button"
-                    [class]="socialOptions.platform === 'pinterest' ? 
-                      'bg-primary text-white' : 
-                      'bg-white text-gray-700 hover:bg-gray-50'"
-                    (click)="selectPlatform('pinterest')"
-                    class="px-4 py-3 border rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
-                  >
-                    Pinterest
-                  </button>
-                  <button
-                    type="button"
-                    [class]="socialOptions.platform === 'facebook' ? 
-                      'bg-primary text-white' : 
-                      'bg-white text-gray-700 hover:bg-gray-50'"
-                    (click)="selectPlatform('facebook')"
-                    class="px-4 py-3 border rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
-                  >
-                    Facebook
-                  </button>
-                </div>
-              </div>
-
-              <!-- Content Type -->
-              <div>
-                <label for="contentType" class="block text-sm font-medium text-gray-700">Content Type</label>
-                <select
-                  id="contentType"
-                  [(ngModel)]="socialOptions.contentType"
-                  name="contentType"
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"
-                >
-                  <option value="product_showcase">Product Showcase</option>
-                  <option value="lifestyle">Lifestyle</option>
-                  <option value="promotional">Promotional</option>
-                  <option value="educational">Educational</option>
-                </select>
-              </div>
-
-              <!-- Tone -->
-              <div>
-                <label for="tone" class="block text-sm font-medium text-gray-700">Tone</label>
-                <select
-                  id="tone"
-                  [(ngModel)]="socialOptions.tone"
-                  name="tone"
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"
-                >
-                  <option value="casual">Casual</option>
-                  <option value="professional">Professional</option>
-                  <option value="friendly">Friendly</option>
-                  <option value="luxury">Luxury</option>
-                </select>
-              </div>
-
-              <!-- Target Audience -->
-              <div>
-                <label for="targetAudience" class="block text-sm font-medium text-gray-700">Target Audience</label>
-                <select
-                  id="targetAudience"
-                  [(ngModel)]="socialOptions.targetAudience"
-                  name="targetAudience"
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"
-                >
-                  <option value="general">General Audience</option>
-                  <option value="young_adults">Young Adults</option>
-                  <option value="professionals">Professionals</option>
-                  <option value="luxury_buyers">Luxury Buyers</option>
-                </select>
-              </div>
-
-              <!-- Promotional Angle -->
-              <div>
-                <label for="promotionalAngle" class="block text-sm font-medium text-gray-700">Promotional Angle</label>
-                <select
-                  id="promotionalAngle"
-                  [(ngModel)]="socialOptions.promotionalAngle"
-                  name="promotionalAngle"
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"
-                >
-                  <option value="features">Product Features</option>
-                  <option value="benefits">Customer Benefits</option>
-                  <option value="lifestyle">Lifestyle Impact</option>
-                  <option value="value_proposition">Value Proposition</option>
-                </select>
-              </div>
-
-              <!-- Additional Options -->
-              <div class="space-y-4">
-                <div class="flex items-center">
-                  <input
-                    id="includePrice"
-                    type="checkbox"
-                    [(ngModel)]="socialOptions.includePrice"
-                    name="includePrice"
-                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-                  />
-                  <label for="includePrice" class="ml-2 block text-sm text-gray-700">
-                    Include Price
-                  </label>
-                </div>
-                <div class="flex items-center">
-                  <input
-                    id="includeCTA"
-                    type="checkbox"
-                    [(ngModel)]="socialOptions.includeCTA"
-                    name="includeCTA"
-                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-                  />
-                  <label for="includeCTA" class="ml-2 block text-sm text-gray-700">
-                    Include Call-to-Action
-                  </label>
-                </div>
-              </div>
-
-              <!-- Generate Button -->
-              <div>
-                <button
-                  type="submit"
-                  [disabled]="!selectedProduct || isGeneratingSocial"
-                  class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <svg
-                    *ngIf="isGeneratingSocial"
-                    class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      class="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      stroke-width="4"
-                    ></circle>
-                    <path
-                      class="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  {{ isGeneratingSocial ? 'Generating...' : 'Generate Social Content' }}
-                </button>
-              </div>
-            </form>
-
-            <!-- Generated Content Preview -->
-            <div *ngIf="generatedSocialContent" class="mt-6 p-4 bg-gray-50 rounded-lg">
-              <h3 class="text-lg font-medium text-gray-900 mb-2">Generated Content</h3>
-              <div class="space-y-4">
-                <div>
-                  <h4 class="text-sm font-medium text-gray-700">Main Content</h4>
-                  <p class="mt-1 text-sm text-gray-600">{{ generatedSocialContent.content }}</p>
-                </div>
-                <div *ngIf="generatedSocialContent.hashtags">
-                  <h4 class="text-sm font-medium text-gray-700">Hashtags</h4>
-                  <p class="mt-1 text-sm text-gray-600">{{ generatedSocialContent.hashtags }}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  `
+  imports: [
+    CommonModule, 
+    ProductSelectorComponent,
+    DescriptionGeneratorComponent,
+    SocialContentGeneratorComponent,
+    ImageGeneratorComponent
+    ],
+  templateUrl: "./product-seo.component.html",
 })
 export class ProductSeoComponent implements OnInit {
-  product = {
-    name: '',
-    details: '',
-    tone: 'professional'
-  };
-
+  // Product-related properties
   products: Product[] = [];
   productDescriptions: ProductDescription[] = [];
+  selectedProduct: Product | null = null;
+  product = {
+    name: "",
+    details: "",
+    tone: "professional",
+  };
+
+  // UI state properties
   isLoading = false;
   error: string | null = null;
   submitted = false;
-  selectedProduct: Product | null = null;
 
+  // Social content properties
   socialOptions: SocialPromoOptions = {
     platform: 'instagram',
     contentType: 'product_showcase',
@@ -415,9 +51,33 @@ export class ProductSeoComponent implements OnInit {
     targetAudience: 'general',
     promotionalAngle: 'features'
   };
-
   isGeneratingSocial = false;
   generatedSocialContent: SocialPromoContent | null = null;
+  savedSocialContent: SocialPromoContent[] = [];
+  generatedContent: SocialPromoContent[] = [];
+  activePlatform: 'instagram' | 'pinterest' | 'facebook' = 'instagram';
+
+  // Image generation properties
+  imageOptions: ImageGenerationOptions = {
+    platform: 'instagram',
+    style: 'realistic',
+    mood: 'bright',
+    composition: 'product_only',
+    background: 'plain',
+    colorScheme: 'brand_colors',
+    includeText: false,
+    includeLogo: false,
+    aspectRatio: '1:1'
+  };
+  platforms: ('instagram' | 'pinterest' | 'facebook')[] = [
+    'instagram',
+    'pinterest',
+    'facebook'
+  ];
+  aspectRatios: ('1:1' | '4:5' | '16:9' | '9:16')[] = ['1:1', '4:5', '16:9', '9:16'];
+  isGeneratingImage = false;
+  generatedImage: GeneratedImage | null = null;
+  savedImages: GeneratedImage[] = [];
 
   constructor(private supabaseService: SupabaseService) {}
 
@@ -432,9 +92,9 @@ export class ProductSeoComponent implements OnInit {
         this.products = products;
       },
       error: (error) => {
-        console.error('Error loading products:', error);
-        this.error = 'Failed to load products';
-      }
+        console.error("Error loading products:", error);
+        this.error = "Failed to load products";
+      },
     });
   }
 
@@ -444,9 +104,9 @@ export class ProductSeoComponent implements OnInit {
         this.productDescriptions = descriptions;
       },
       error: (error) => {
-        console.error('Error loading product descriptions:', error);
-        this.error = 'Failed to load product descriptions';
-      }
+        console.error("Error loading product descriptions:", error);
+        this.error = "Failed to load product descriptions";
+      },
     });
   }
 
@@ -455,19 +115,19 @@ export class ProductSeoComponent implements OnInit {
     this.product = {
       name: product.name,
       details: product.description,
-      tone: 'professional'
+      tone: "professional",
     };
   }
 
   clearForm() {
     this.selectedProduct = null;
     this.product = {
-      name: '',
-      details: '',
-      tone: 'professional'
+      name: "",
+      details: "",
+      tone: "professional",
     };
   }
-
+/*
   generateDescription() {
     this.submitted = true;
 
@@ -478,34 +138,38 @@ export class ProductSeoComponent implements OnInit {
     this.isLoading = true;
 
     // For now, we'll use a dummy generated description
-    const dummyDescription = `Introducing the ${this.product.name} - a revolutionary product that ${this.product.details.toLowerCase()}. This innovative solution offers unparalleled performance and reliability, making it the perfect choice for discerning customers who demand excellence.`;
+    const dummyDescription = `Introducing the ${
+      this.product.name
+    } - a revolutionary product that ${this.product.details.toLowerCase()}. This innovative solution offers unparalleled performance and reliability, making it the perfect choice for discerning customers who demand excellence.`;
 
-    this.supabaseService.addProductDescription(
-      this.product.name,
-      this.product.details,
-      dummyDescription,
-      this.product.tone
-    ).subscribe({
-      next: () => {
-        this.isLoading = false;
-        this.submitted = false;
-        this.selectedProduct = null;
-        this.product = {
-          name: '',
-          details: '',
-          tone: 'professional'
-        };
-        this.loadProductDescriptions();
-      },
-      error: (error) => {
-        console.error('Error saving product description:', error);
-        this.error = 'Failed to save product description';
-        this.isLoading = false;
-      }
-    });
+    this.supabaseService
+      .addProductDescription(
+        this.product.name,
+        this.product.details,
+        dummyDescription,
+        this.product.tone
+      )
+      .subscribe({
+        next: () => {
+          this.isLoading = false;
+          this.submitted = false;
+          this.selectedProduct = null;
+          this.product = {
+            name: "",
+            details: "",
+            tone: "professional",
+          };
+          this.loadProductDescriptions();
+        },
+        error: (error) => {
+          console.error("Error saving product description:", error);
+          this.error = "Failed to save product description";
+          this.isLoading = false;
+        },
+      });
   }
-
-  selectPlatform(platform: 'instagram' | 'pinterest' | 'facebook') {
+*/
+  selectPlatform(platform: "instagram" | "pinterest" | "facebook") {
     this.socialOptions.platform = platform;
   }
 
@@ -518,37 +182,53 @@ export class ProductSeoComponent implements OnInit {
     setTimeout(() => {
       const dummyContent = this.generateDummySocialContent();
       this.generatedSocialContent = {
-        id: 'dummy-id',
+        id: "dummy-id",
         product_id: this.selectedProduct!.id,
         platform: this.socialOptions.platform,
         content: dummyContent.content,
         hashtags: dummyContent.hashtags,
         created_at: new Date().toISOString(),
-        options: { ...this.socialOptions }
+        options: { ...this.socialOptions },
       };
       this.isGeneratingSocial = false;
     }, 1500);
   }
 
   private generateDummySocialContent() {
-    const { platform, contentType, tone, includePrice, includeCTA, targetAudience, promotionalAngle } = this.socialOptions;
-    
-    let content = '';
-    let hashtags = '';
+    const {
+      platform,
+      contentType,
+      tone,
+      includePrice,
+      includeCTA,
+      targetAudience,
+      promotionalAngle,
+    } = this.socialOptions;
+
+    let content = "";
+    let hashtags = "";
 
     // Generate dummy content based on options
     switch (contentType) {
-      case 'product_showcase':
-        content = `✨ Discover the amazing ${this.selectedProduct!.name}! ${this.selectedProduct!.description}`;
+      case "product_showcase":
+        content = `✨ Discover the amazing ${this.selectedProduct!.name}! ${
+          this.selectedProduct!.description
+        }`;
         break;
-      case 'lifestyle':
-        content = `Transform your life with the ${this.selectedProduct!.name}. Imagine the possibilities!`;
+      case "lifestyle":
+        content = `Transform your life with the ${
+          this.selectedProduct!.name
+        }. Imagine the possibilities!`;
         break;
-      case 'promotional':
-        content = `🔥 Special offer alert! Don't miss out on the incredible ${this.selectedProduct!.name}`;
+      case "promotional":
+        content = `🔥 Special offer alert! Don't miss out on the incredible ${
+          this.selectedProduct!.name
+        }`;
         break;
-      case 'educational':
-        content = `Did you know? The ${this.selectedProduct!.name} is revolutionizing the way we think about technology.`;
+      case "educational":
+        content = `Did you know? The ${
+          this.selectedProduct!.name
+        } is revolutionizing the way we think about technology.`;
         break;
     }
 
@@ -557,22 +237,140 @@ export class ProductSeoComponent implements OnInit {
     }
 
     if (includeCTA) {
-      content += '\n\nShop now! Link in bio. 👆';
+      content += "\n\nShop now! Link in bio. 👆";
     }
 
     // Generate platform-specific hashtags
     switch (platform) {
-      case 'instagram':
-        hashtags = '#ProductLaunch #MustHave #Innovation #TechLife #Shopping';
+      case "instagram":
+        hashtags = "#ProductLaunch #MustHave #Innovation #TechLife #Shopping";
         break;
-      case 'pinterest':
-        hashtags = '#ProductInspo #Innovation #Shopping #Lifestyle #Tech';
+      case "pinterest":
+        hashtags = "#ProductInspo #Innovation #Shopping #Lifestyle #Tech";
         break;
-      case 'facebook':
-        hashtags = '#NewProduct #Innovation #MustHave #Shopping';
+      case "facebook":
+        hashtags = "#NewProduct #Innovation #MustHave #Shopping";
         break;
     }
 
     return { content, hashtags };
+  }
+
+
+  setActivePlatform(platform: 'instagram' | 'pinterest' | 'facebook') {
+    this.activePlatform = platform;
+  }
+
+  getContentByPlatform(platform: string): SocialPromoContent[] {
+    return this.savedSocialContent.filter(content => content.platform === platform);
+  }
+
+  // Image generation methods
+  selectImagePlatform(platform: 'instagram' | 'pinterest' | 'facebook') {
+    this.imageOptions.platform = platform;
+  }
+
+  selectAspectRatio(ratio: '1:1' | '4:5' | '16:9' | '9:16') {
+    this.imageOptions.aspectRatio = ratio;
+  }
+
+  // Save generated social content
+  saveSocialContent(content: SocialPromoContent) {
+    this.supabaseService.saveSocialContent(content).subscribe({
+      next: (savedContent) => {
+        this.savedSocialContent = [savedContent, ...this.savedSocialContent];
+        Swal.fire({
+          title: 'Success!',
+          text: 'Content has been saved successfully',
+          icon: 'success',
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#2563eb'
+        });
+      },
+      error: (error) => {
+        console.error('Error saving social content:', error);
+        Swal.fire({
+          title: 'Error',
+          text: 'Failed to save social content',
+          icon: 'error',
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#2563eb'
+        });
+      }
+    });
+  }
+
+  generateImage() {
+    if (!this.selectedProduct) return;
+
+    this.isGeneratingImage = true;
+
+    // Simulate API call with dummy image
+    setTimeout(() => {
+      this.generatedImage = {
+        id: 'dummy-image-id',
+        product_id: this.selectedProduct!.id,
+        platform: this.imageOptions.platform,
+        imageUrl: 'https://picsum.photos/800/800', // Random image from Lorem Picsum
+        prompt: `Generate a ${this.imageOptions.style} product image for ${this.selectedProduct!.name} with ${this.imageOptions.mood} mood and ${this.imageOptions.composition} composition. Platform: ${this.imageOptions.platform}, Aspect ratio: ${this.imageOptions.aspectRatio}`,
+        options: { ...this.imageOptions },
+        created_at: new Date().toISOString()
+      };
+      this.isGeneratingImage = false;
+
+      Swal.fire({
+        title: 'Image Generated!',
+        text: 'Your promotional image has been generated successfully.',
+        icon: 'success',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#2563eb'
+      });
+    }, 2000);
+  }
+  // Delete saved social content
+  deleteSavedSocialContent(contentId: string) {
+    Swal.fire({
+      title: 'Are you sure?',
+      text: 'This action cannot be undone',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete it',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#2563eb',
+      cancelButtonColor: '#6b7280'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.supabaseService.deleteSocialContent(contentId).subscribe({
+          next: () => {
+            this.savedSocialContent = this.savedSocialContent.filter(content => content.id !== contentId);
+            Swal.fire({
+              title: 'Deleted!',
+              text: 'Content has been deleted successfully',
+              icon: 'success',
+              confirmButtonText: 'OK',
+              confirmButtonColor: '#2563eb'
+            });
+          },
+          error: (error) => {
+            console.error('Error deleting social content:', error);
+            Swal.fire({
+              title: 'Error',
+              text: 'Failed to delete content',
+              icon: 'error',
+              confirmButtonText: 'OK',
+              confirmButtonColor: '#2563eb'
+            });
+          }
+        });
+      }
+    });
+  }
+
+  onProductSelect(product: Product) {
+    this.selectedProduct = product;
+  }
+
+  onDescriptionGenerated() {
+    this.loadProductDescriptions();
   }
 }

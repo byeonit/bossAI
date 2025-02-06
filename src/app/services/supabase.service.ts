@@ -15,6 +15,8 @@ import {
   UserCredentials,
   AuthResponse,
   ProductDescription,
+  SocialPromoContent,
+  GeneratedImage,
 } from "../types/supabase.types";
 import { environment } from "../../environments/environment";
 
@@ -44,6 +46,7 @@ export class SupabaseService {
     return this.currentUser.asObservable();
   }
 
+  // Authentication methods
   signUp(credentials: UserCredentials): Observable<AuthResponse> {
     return from(this.supabase.auth.signUp(credentials)).pipe(
       map(({ data, error }) => ({
@@ -69,7 +72,36 @@ export class SupabaseService {
       })
     );
   }
+/*
+  // Marketing Content methods
+  addMarketingContent(title: string, description: string): Observable<MarketingContent> {
+    if (!this.currentUser.value?.id) {
+      return throwError(() => new Error('User not authenticated'));
+    }
 
+    const contentData = {
+      title,
+      description,
+      user_id: this.currentUser.value.id
+    };
+
+    return from(
+      this.supabase
+        .from('marketing_content')
+        .insert([contentData])
+        .select()
+        .single()
+    ).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return data as MarketingContent;
+      }),
+      catchError((error: Error) => {
+        console.error('Error adding marketing content:', error);
+        return throwError(() => new Error('Failed to add marketing content: ' + error.message));
+      })
+    );
+  }*/
   // Marketing Content Methods
   addMarketingContent(
     title: string,
@@ -254,7 +286,36 @@ export class SupabaseService {
       throw error;
     }
   }
+  /*
+  // Marketing Campaign methods
+  addCampaign(campaign: Partial<MarketingCampaign>): Observable<MarketingCampaign> {
+    if (!this.currentUser.value?.id) {
+      return throwError(() => new Error('User not authenticated'));
+    }
 
+    const campaignData = {
+      ...campaign,
+      user_id: this.currentUser.value.id
+    };
+
+    return from(
+      this.supabase
+        .from('marketing_campaigns')
+        .insert([campaignData])
+        .select()
+        .single()
+    ).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return data as MarketingCampaign;
+      }),
+      catchError((error: Error) => {
+        console.error('Error adding campaign:', error);
+        return throwError(() => new Error('Failed to add campaign: ' + error.message));
+      })
+    );
+  }
+  */
   addCampaign(campaign: {
     campaign_name: string;
     target_audience: string;
@@ -451,7 +512,7 @@ export class SupabaseService {
       })
     );
   }
-
+/*
   // Add a new product description
   addProductDescription(
     name: string,
@@ -480,7 +541,7 @@ export class SupabaseService {
       })
     );
   }
-
+*/
   // Add this new method to get products
   getProducts(): Observable<Product[]> {
     return from(
@@ -496,4 +557,207 @@ export class SupabaseService {
       })
     );
   }
+
+  // Social Content methods
+  saveSocialContent(content: SocialPromoContent): Observable<SocialPromoContent> {
+    if (!this.currentUser.value?.id) {
+      return throwError(() => new Error('User not authenticated'));
+    }
+
+    const contentData = {
+      product_id: content.product_id,
+      user_id: this.currentUser.value.id,
+      platform: content.platform,
+      content: content.content,
+      hashtags: content.hashtags,
+      options: JSON.stringify(content.options)
+    };
+
+    return from(
+      this.supabase
+        .from('social_content')
+        .insert([contentData])
+        .select()
+        .single()
+    ).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return {
+          ...data,
+          options: JSON.parse(data.options)
+        } as SocialPromoContent;
+      }),
+      catchError((error: Error) => {
+        console.error('Error saving social content:', error);
+        return throwError(() => new Error('Failed to save social content: ' + error.message));
+      })
+    );
+  }
+
+  getSocialContent(productId: string): Observable<SocialPromoContent[]> {
+    if (!this.currentUser.value?.id) {
+      return throwError(() => new Error('User not authenticated'));
+    }
+
+    return from(
+      this.supabase
+        .from('social_content')
+        .select('*')
+        .eq('product_id', productId)
+        .eq('user_id', this.currentUser.value.id)
+        .order('created_at', { ascending: false })
+    ).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return data.map(item => ({
+          ...item,
+          options: JSON.parse(item.options)
+        })) as SocialPromoContent[];
+      }),
+      catchError((error: Error) => {
+        console.error('Error fetching social content:', error);
+        return throwError(() => new Error('Failed to fetch social content: ' + error.message));
+      })
+    );
+  }
+
+  deleteSocialContent(contentId: string): Observable<void> {
+    if (!this.currentUser.value?.id) {
+      return throwError(() => new Error('User not authenticated'));
+    }
+
+    return from(
+      this.supabase
+        .from('social_content')
+        .delete()
+        .eq('id', contentId)
+        .eq('user_id', this.currentUser.value.id)
+    ).pipe(
+      map(({ error }) => {
+        if (error) throw error;
+      }),
+      catchError((error: Error) => {
+        console.error('Error deleting social content:', error);
+        return throwError(() => new Error('Failed to delete social content: ' + error.message));
+      })
+    );
+  }
+
+  // Generated Image methods
+  saveGeneratedImage(image: GeneratedImage): Observable<GeneratedImage> {
+    if (!this.currentUser.value?.id) {
+      return throwError(() => new Error('User not authenticated'));
+    }
+
+    const imageData = {
+      product_id: image.product_id,
+      user_id: this.currentUser.value.id,
+      platform: image.platform,
+      image_url: image.imageUrl,
+      prompt: image.prompt,
+      options: image.options
+    };
+
+    return from(
+      this.supabase
+        .from('generated_images')
+        .insert([imageData])
+        .select()
+        .single()
+    ).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return data as GeneratedImage;
+      }),
+      catchError((error: Error) => {
+        console.error('Error saving generated image:', error);
+        return throwError(() => new Error('Failed to save generated image: ' + error.message));
+      })
+    );
+  }
+
+  deleteGeneratedImage(imageId: string): Observable<void> {
+    if (!this.currentUser.value?.id) {
+      return throwError(() => new Error('User not authenticated'));
+    }
+
+    return from(
+      this.supabase
+        .from('generated_images')
+        .delete()
+        .eq('id', imageId)
+        .eq('user_id', this.currentUser.value.id)
+    ).pipe(
+      map(({ error }) => {
+        if (error) throw error;
+      }),
+      catchError((error: Error) => {
+        console.error('Error deleting generated image:', error);
+        return throwError(() => new Error('Failed to delete generated image: ' + error.message));
+      })
+    );
+  }
+
+  getGeneratedImages(productId: string): Observable<GeneratedImage[]> {
+    if (!this.currentUser.value?.id) {
+      return throwError(() => new Error('User not authenticated'));
+    }
+
+    return from(
+      this.supabase
+        .from('generated_images')
+        .select('*')
+        .eq('product_id', productId)
+        .eq('user_id', this.currentUser.value.id)
+        .order('created_at', { ascending: false })
+    ).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return data as GeneratedImage[];
+      }),
+      catchError((error: Error) => {
+        console.error('Error fetching generated images:', error);
+        return throwError(() => new Error('Failed to fetch generated images: ' + error.message));
+      })
+    );
+  }
+
+  // Product Description methods
+  addProductDescription(
+    name: string,
+    details: string,
+    tone: string
+  ): Observable<ProductDescription> {
+    if (!this.currentUser.value?.id) {
+      return throwError(() => new Error('User not authenticated'));
+    }
+
+    const dummyDescription = `Introducing the ${name} - a revolutionary product that ${details.toLowerCase()}. This innovative solution offers unparalleled performance and reliability, making it the perfect choice for discerning customers who demand excellence.`;
+
+    const descriptionData = {
+      name,
+      details,
+      generated_description: dummyDescription,
+      tone,
+      user_id: this.currentUser.value.id
+    };
+
+    return from(
+      this.supabase
+        .from('product_descriptions')
+        .insert([descriptionData])
+        .select()
+        .single()
+    ).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return data as ProductDescription;
+      }),
+      catchError((error: Error) => {
+        console.error('Error adding product description:', error);
+        return throwError(() => new Error('Failed to add product description: ' + error.message));
+      })
+    );
+  }
+
 }
